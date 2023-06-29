@@ -9,8 +9,8 @@ MAIN=$(PKG).CXGame
 
 M:=7
 N:=7
-X:=4
-REPS:=2 # game to play
+X:=5
+REPS:=5 		# game to play
 TIME:=10
 BEST:=Morales.Morales
 OLD:=L1.L1
