@@ -20,6 +20,7 @@ public class Morales implements CXPlayer {
   private int evalAlphaBeta = Integer.MIN_VALUE;
   private CXCellState player;
   private CXCellState free;
+  private int depth;
 
   // evaluating system
   private final int WIN = Integer.MAX_VALUE;
@@ -39,7 +40,37 @@ public class Morales implements CXPlayer {
     player = first ? CXCellState.P1 : CXCellState.P2;
     free = CXCellState.FREE;
 
+    initDepth(M, N);
+
     TIMEOUT = timeout_in_secs;
+  }
+
+  private void initDepth(int row, int cols) {
+    if (cols == 4) {
+      if (row == 4)
+        depth = 14; // 4 X 4
+      else if (row == 5)
+        depth = 18; // 5 X 4
+      else if (row == 6)
+        depth = 22; // 6 X 4
+      else
+        depth = 13; // 7 X 4
+    } else if (cols == 5) {
+      if (row == 4)
+        depth = 18; // 4 X 5
+      else
+        depth = 11; // 5 X 5, 6 X 5, 7 X 5
+    } else if (cols == 6) { // 4 X 6, 5 X 6, 6 X 6, 7 X 6
+      depth = 10;
+    } else if (cols == 7) { // 4 X 7, 5 X 7, 6 X 7, 7 X 7
+      depth = 8;
+    } else if (cols == 25) { // 25 X 25
+      depth = 3;
+    } else if (cols == 50) { // 50 X 50
+      depth = 2;
+    } else { // 100 X 100
+      depth = 1;
+    }
   }
 
   public int selectColumn(CXBoard B) {
@@ -52,60 +83,55 @@ public class Morales implements CXPlayer {
     int alpha = LOSE;
     int beta = WIN;
 
-    if (B.numOfFreeCells() == B.M * B.N)            // prima mossa
-      return B.N/2;   // java arrotonda automaticamente per difetto
-    else 
-      if (B.numOfFreeCells() == ((B.M * B.N) - 1))  // seconda mossa
+    if (B.numOfFreeCells() == B.M * B.N) { // first move
+      return firstMove(B.N);
+    } else {
+      if (B.numOfFreeCells() == ((B.M * B.N) - 1)) { // second move
         return secondMove(B);
-      else {
-        if (FC.length == 1) // una sola cella libera, ultima mossa
+      } else {
+        if (FC.length == 1) { // last move
           return FC[0];
+        }
 
         try {
-          for (int currentColumn : FC) {
+
+          depth = evaluateDepth(B.numOfFreeCells());
+
+          for (int i : FC) {
             checktime();
-            B.markColumn(currentColumn);
-            if (B.gameState() == myWin)
-              return currentColumn;
+            B.markColumn(i);
+            if (B.gameState() == myWin) {
+              return i;
+            }
 
             if (!enemyIsWinning(B)) {
-              int currentEval;
-              int depth = 1;
-              while(depth <= B.numOfFreeCells()){
-                checktime();
-                currentEval = alphaBeta(B, false, alpha, beta, depth);
-                if (currentEval > eval) {
-                  eval = currentEval;
-                  bestMove = currentColumn;
-                }
-
-                depth++;
+              // int evaltmp = miniMax(B, false, depth);
+              int evaltmp = alphaBeta(B, false, alpha, beta, depth);
+              if (evaltmp > eval) {
+                eval = evaltmp;
+                bestMove = i;
               }
-
-              /*int currentEval;
-              // iterative deepining 
-              for(int depth = 1; depth <= B.numOfFreeCells(); depth++){    // la massima profondità alla quale si può arrivare esplorando l'albero di gioco è numOfFreeCells (analizzare tutte le celle libere)
-                checktime();  
-                currentEval = alphaBeta(B, false, alpha, beta, depth);
-
-                if(currentEval > eval){
-                  eval = currentEval;
-                  bestMove = currentColumn;
-                }
-              }
-              */
             }
+
+            B.unmarkColumn();
           }
 
-          B.unmarkColumn();
-        }
-        catch (Exception e) {
+        } catch (Exception e) {
           System.out.println("Timeout!");
           return bestMove;
         }
+
       }
-  
+    }
     return bestMove;
+  }
+
+  private int firstMove(int col) {
+    if (col % 2 == 0) { // even columns
+      return col / 2;
+    } else { // odd columns
+      return (col - 1) / 2;
+    }
   }
 
   private int secondMove(CXBoard B) {
@@ -142,7 +168,6 @@ public class Morales implements CXPlayer {
    * ALPHABETA
    */
   private int alphaBeta(CXBoard B, Boolean ourPlayer, int alpha, int beta, int depth) throws TimeoutException {
-    checktime();
     if (B.gameState() != CXGameState.OPEN || depth == 0) {
       evalAlphaBeta = evaluate(B);
     } else if (ourPlayer) {
@@ -319,9 +344,16 @@ public class Morales implements CXPlayer {
     return eval;
   }
 
+  // evaluating depth
+  private int evaluateDepth(int nFC) {
+    if (depth == nFC) {
+      return nFC - 1;
+    } else
+      return depth;
+  }
 
   private void checktime() throws TimeoutException {
-    if ((System.currentTimeMillis() - START) / 1000.0 >= TIMEOUT * (90.0 / 100.0)) {    // tempo margine per evitare di andare in timeout
+    if ((System.currentTimeMillis() - START) / 1000.0 >= TIMEOUT * (99.0 / 100.0)) {
       throw new TimeoutException();
     }
   }
