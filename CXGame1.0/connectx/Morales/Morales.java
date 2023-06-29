@@ -167,10 +167,10 @@ public class Morales implements CXPlayer {
   /**
    * ALPHABETA
    */
-  private int alphaBeta(CXBoard B, Boolean ourPlayer, int alpha, int beta, int depth) throws TimeoutException {
+  private int alphaBeta(CXBoard B, Boolean myTurn, int alpha, int beta, int depth) throws TimeoutException {
     if (B.gameState() != CXGameState.OPEN || depth == 0) {
       evalAlphaBeta = evaluate(B);
-    } else if (ourPlayer) {
+    } else if (myTurn) {
       evalAlphaBeta = LOSE;
       for (int j : B.getAvailableColumns()) {
         B.markColumn(j);

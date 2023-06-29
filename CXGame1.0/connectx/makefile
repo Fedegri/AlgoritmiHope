@@ -8,12 +8,12 @@ TEST=CXPlayerTester
 MAIN=$(PKG).CXGame
 
 M:=7
-N:=7
+N:=5
 X:=5
 REPS:=5 		# game to play
 TIME:=10
-BEST:=Morales.Morales
-OLD:=L1.L1
+BEST:=Dorina.Dorina
+OLD:=Morales.Morales
 
 .SUFFIXES: .java .class
 .PHONY: build

@@ -1,4 +1,6 @@
-package connectx.Marullo;
+/** VERSIONE 2 - iterative deepening */
+
+package connectx.Dorina;
 
 import java.util.TreeSet;
 import java.util.Arrays;
@@ -10,7 +12,7 @@ import connectx.CXGame;
 import connectx.CXGameState;
 import connectx.CXPlayer;
 
-public class Marullo implements CXPlayer {
+public class Dorina implements CXPlayer {
 
   private CXGameState myWin;
   private CXGameState yourWin;
@@ -21,7 +23,9 @@ public class Marullo implements CXPlayer {
   private CXCellState player;
   private CXCellState free;
 
-  // evaluating system
+  /*
+   * Sistema di valutazione
+   */ 
   private final int WIN = Integer.MAX_VALUE;
   private final int DRAW = 0;
   private final int LOSE = Integer.MIN_VALUE;
@@ -29,9 +33,12 @@ public class Marullo implements CXPlayer {
   /*
    * Default empty constructor
    */
-  public Marullo() {
+  public Dorina() {
   }
 
+  /*
+   * INIZIALIZZAZIONE  
+   */
   public void initPlayer(int M, int N, int X, boolean first, int timeout_in_secs) {
     myWin = first ? CXGameState.WINP1 : CXGameState.WINP2;
     yourWin = first ? CXGameState.WINP2 : CXGameState.WINP1;
@@ -42,6 +49,9 @@ public class Marullo implements CXPlayer {
     TIMEOUT = timeout_in_secs;
   }
 
+  /*
+   * SELEZIONE COLONNA
+   */
   public int selectColumn(CXBoard B) {
     START = System.currentTimeMillis(); // Save starting
 
@@ -52,59 +62,47 @@ public class Marullo implements CXPlayer {
     int alpha = LOSE;
     int beta = WIN;
 
-    if (B.numOfFreeCells() == B.M * B.N)            // prima mossa
-      return B.N/2;   // java arrotonda automaticamente per difetto
-    else 
-      if (B.numOfFreeCells() == ((B.M * B.N) - 1))  // seconda mossa
-        return secondMove(B);
-      else {
-        if (FC.length == 1) // una sola cella libera, ultima mossa
-          return FC[0];
+    if (B.numOfFreeCells() == B.M * B.N)              // prima mossa
+      return B.N / 2; // java arrotonda automaticamente per difetto
+    else if (B.numOfFreeCells() == ((B.M * B.N) - 1)) // seconda mossa
+      return secondMove(B);
+    else {
+      if (FC.length == 1)      // una sola cella libera, ultima mossa
+        return FC[0];
 
-        try {
-          for (int currentColumn : FC) {
-            checktime();
-            B.markColumn(currentColumn);
-            if (B.gameState() == myWin)
-              return currentColumn;
+      try {
+        for (int currentColumn : FC) {    // per ogni colonna libera
+          checktime();
+          B.markColumn(currentColumn);      // supponiamo di mettere il gettone nella colonna corrente
+          if (B.gameState() == myWin)         // se fa vincere, la si seleziona
+            return currentColumn;
 
-            if (!enemyIsWinning(B)) {
-              int currentEval;
-              int depth = 1;
-              while(depth <= B.numOfFreeCells()){
-                checktime();
-                currentEval = alphaBeta(B, false, alpha, beta, depth);
-                if (currentEval > eval) {
-                  eval = currentEval;
-                  bestMove = currentColumn;
-                }
-
-                depth++;
+          if (!enemyIsWinning(B)) {
+            int currentEval = eval;
+            int depth = 1;
+            // iterative deepening
+            while (depth <= B.numOfFreeCells()) {
+              System.out.println("depth = " + depth + ",  eval = " + eval + ",  current eval = " + currentEval);
+              checktime();
+              currentEval = alphaBeta(B, false, alpha, beta, depth); /** PERCHÈ MYTURN È SETTATO A FALSE A PRESCINDERE????? */
+              if (currentEval > eval) {
+                eval = currentEval;
+                bestMove = currentColumn;
+                System.out.println("  best move = " + bestMove + ",  current column = " + currentColumn);
               }
 
-              /*int currentEval;
-              // iterative deepining 
-              for(int depth = 1; depth <= B.numOfFreeCells(); depth++){    // la massima profondità alla quale si può arrivare esplorando l'albero di gioco è numOfFreeCells (analizzare tutte le celle libere)
-                checktime();  
-                currentEval = alphaBeta(B, false, alpha, beta, depth);
-
-                if(currentEval > eval){
-                  eval = currentEval;
-                  bestMove = currentColumn;
-                }
-              }
-              */
+              depth++;
             }
           }
+        }
 
-          B.unmarkColumn();
-        }
-        catch (Exception e) {
-          System.out.println("Timeout!");
-          return bestMove;
-        }
+        B.unmarkColumn();
+      } catch (Exception e) {
+        System.out.println("Timeout!");
+        return bestMove;
       }
-  
+    }
+
     return bestMove;
   }
 
@@ -126,8 +124,8 @@ public class Marullo implements CXPlayer {
 
   private Boolean enemyIsWinning(CXBoard B) {
     Boolean isWinning = false;
-    for (int j : B.getAvailableColumns()) {
-      B.markColumn(j);
+    for (int currentColumn : B.getAvailableColumns()) {
+      B.markColumn(currentColumn);
       if (B.gameState() == yourWin) {
         isWinning = true;
         B.unmarkColumn();
@@ -138,28 +136,26 @@ public class Marullo implements CXPlayer {
     return isWinning;
   }
 
-  /**
-   * ALPHABETA
-   */
-  private int alphaBeta(CXBoard B, Boolean ourPlayer, int alpha, int beta, int depth) throws TimeoutException {
+  /* ALPHABETA */
+  private int alphaBeta(CXBoard B, boolean myTurn, int alpha, int beta, int depth) throws TimeoutException {
     checktime();
-    if (B.gameState() != CXGameState.OPEN || depth == 0) {
+    if (B.gameState() != CXGameState.OPEN || depth <= 0) // se il gioco non è più aperto OPPURE depth <= 0 => termina
       evalAlphaBeta = evaluate(B);
-    } else if (ourPlayer) {
-      evalAlphaBeta = LOSE;
-      for (int j : B.getAvailableColumns()) {
-        B.markColumn(j);
-        evalAlphaBeta = Math.max(evalAlphaBeta, alphaBeta(B, false, alpha, beta, depth - 1));
+    else if (myTurn) { // massimizzare
+      evalAlphaBeta = LOSE; // Integer.MIN_VALUE
+      for (int currentColumn : B.getAvailableColumns()) {
+        B.markColumn(currentColumn);
+        evalAlphaBeta = Math.max(evalAlphaBeta, alphaBeta(B, !myTurn, alpha, beta, depth - 1)); // si prende il massimo tra i valori generati minimizzando i sottoalberi (supponendo quale sia la mossa che farà l'avversario)
         B.unmarkColumn();
         alpha = Math.max(evalAlphaBeta, alpha);
         if (beta <= alpha)
           break;
       }
-    } else {
-      evalAlphaBeta = WIN;
-      for (int k : B.getAvailableColumns()) {
-        B.markColumn(k);
-        evalAlphaBeta = Math.min(evalAlphaBeta, alphaBeta(B, true, alpha, beta, depth - 1));
+    } else { // minimizzare
+      evalAlphaBeta = WIN; // Integer.MAX_VALUE
+      for (int currentColumn : B.getAvailableColumns()) {
+        B.markColumn(currentColumn);
+        evalAlphaBeta = Math.min(evalAlphaBeta, alphaBeta(B, !myTurn, alpha, beta, depth - 1)); // si prende il minimo tra i valori generati massimizzando i sottoalberi
         B.unmarkColumn();
         beta = Math.min(evalAlphaBeta, beta);
         if (beta <= alpha)
@@ -169,7 +165,7 @@ public class Marullo implements CXPlayer {
     return evalAlphaBeta;
   }
 
-  // funzione chiamata a fine partita O quando la depth utilizzata diventa 0
+  // funzione chiamata a fine partita OPPURE quando la depth utilizzata diventa 0
   private int evaluate(CXBoard B) throws TimeoutException {
 
     if (B.gameState() == myWin)
@@ -178,12 +174,11 @@ public class Marullo implements CXPlayer {
       return LOSE;
     else if (B.gameState() == CXGameState.DRAW)
       return DRAW;
-    else { // qui entriamo solo se il gioco è ancora aperto e nessun giocatore ha vinto
-      return evaluateNonePosition(B);
-    }
+    else // SOLO SE depth <= 0
+      return evalNonePosition(B);
   }
 
-  private int evaluateNonePosition(CXBoard B) throws TimeoutException {
+  private int evalNonePosition(CXBoard B) throws TimeoutException {
     CXCellState[][] board = B.getBoard();
 
     int evalRow = 0;
@@ -200,21 +195,19 @@ public class Marullo implements CXPlayer {
         for (int k = 0; k < B.X; k++) {
           CXCellState cellState = board[i][j + k];
 
-          if (cellState == player) {
+          if (cellState == player)
             countPlayer++;
-          } else if (cellState == free) {
+          else if (cellState == free)
             countFree++;
-          } else {
+          else
             countOpponent++;
-          }
         }
 
         // Evaluate the row based on the counts
-        if (countPlayer > 0 && countOpponent == 0) {
+        if (countPlayer > 0 && countOpponent == 0)
           evalRow += countPlayer * countPlayer * countPlayer;
-        } else if (countOpponent > 0 && countPlayer == 0) {
+        else if (countOpponent > 0 && countPlayer == 0)
           evalRow -= countOpponent * countOpponent * countOpponent;
-        }
 
         // Bonus for having more free cells in the row
         evalRow += countFree;
@@ -231,21 +224,19 @@ public class Marullo implements CXPlayer {
         for (int k = 0; k < B.X; k++) {
           CXCellState cellState = board[i + k][j];
 
-          if (cellState == player) {
+          if (cellState == player)
             countPlayer++;
-          } else if (cellState == free) {
+          else if (cellState == free)
             countFree++;
-          } else {
+          else
             countOpponent++;
-          }
         }
 
         // Evaluate the column based on the counts
-        if (countPlayer > 0 && countOpponent == 0) {
+        if (countPlayer > 0 && countOpponent == 0)
           evalCol += countPlayer * countPlayer * countPlayer;
-        } else if (countOpponent > 0 && countPlayer == 0) {
+        else if (countOpponent > 0 && countPlayer == 0)
           evalCol -= countOpponent * countOpponent * countOpponent;
-        }
 
         // Bonus for having more free cells in the column
         evalCol += countFree;
@@ -261,21 +252,19 @@ public class Marullo implements CXPlayer {
 
         for (int k = 0; k < B.X; k++) {
           CXCellState cellState = board[i + k][j + k];
-          if (cellState == player) {
+          if (cellState == player)
             countPlayer++;
-          } else if (cellState == free) {
+          else if (cellState == free)
             countFree++;
-          } else {
+          else
             countOpponent++;
-          }
         }
 
         // Evaluate the diagonal based on the counts
-        if (countPlayer > 0 && countOpponent == 0) {
+        if (countPlayer > 0 && countOpponent == 0)
           evalDiag += countPlayer * countPlayer * countPlayer;
-        } else if (countOpponent > 0 && countPlayer == 0) {
+        else if (countOpponent > 0 && countPlayer == 0)
           evalDiag -= countOpponent * countOpponent * countOpponent;
-        }
 
         // Bonus for having more free cells in the diagonal
         evalDiag += countFree;
@@ -292,21 +281,19 @@ public class Marullo implements CXPlayer {
         for (int k = 0; k < B.X; k++) {
           CXCellState cellState = board[i - k][j + k];
 
-          if (cellState == player) {
+          if (cellState == player)
             countPlayer++;
-          } else if (cellState == free) {
+          else if (cellState == free)
             countFree++;
-          } else {
+          else
             countOpponent++;
-          }
         }
 
         // Evaluate the reverse diagonal based on the counts
-        if (countPlayer > 0 && countOpponent == 0) {
+        if (countPlayer > 0 && countOpponent == 0)
           evalDiag += countPlayer * countPlayer * countPlayer;
-        } else if (countOpponent > 0 && countPlayer == 0) {
+        else if (countOpponent > 0 && countPlayer == 0)
           evalDiag -= countOpponent * countOpponent * countOpponent;
-        }
 
         // Bonus for having more free cells in the reverse diagonal
         evalDiag += countFree;
@@ -314,20 +301,21 @@ public class Marullo implements CXPlayer {
     }
 
     // Combine the evaluations for rows, columns, and diagonals
+    // System.out.println("evalRow = " + evalRow + " evalCol = " + evalCol + "
+    // evalDiag = " + evalDiag);
     int eval = evalRow + evalCol + evalDiag;
 
     return eval;
   }
 
-
   private void checktime() throws TimeoutException {
-    if ((System.currentTimeMillis() - START) / 1000.0 >= TIMEOUT * (90.0 / 100.0)) {    // tempo margine per evitare di andare in timeout
+    if ((System.currentTimeMillis() - START) / 1000.0 >= TIMEOUT * (90.0 / 100.0)) // tempo margine per evitare di
+                                                                                   // andare in timeout
       throw new TimeoutException();
-    }
   }
 
   public String playerName() {
-    return "Marullo";
+    return "Dorina";
   }
 
 }
