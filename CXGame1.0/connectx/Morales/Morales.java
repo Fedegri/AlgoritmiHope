@@ -151,6 +151,7 @@ public class Morales implements CXPlayer {
    * ALPHABETA
    */
   private int alphaBeta(CXBoard B, boolean myTurn, int alpha, int beta, int depth) throws TimeoutException {
+    checktime();
     if (B.gameState() != CXGameState.OPEN || depth == 0) {
       evalAlphaBeta = evaluate(B);
     } else if (myTurn) {

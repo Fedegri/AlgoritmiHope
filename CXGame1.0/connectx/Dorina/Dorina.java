@@ -20,6 +20,7 @@ public class Dorina implements CXPlayer {
   private long START;
   private int bestMove;
   private int evalAlphaBeta = Integer.MIN_VALUE;
+  private int MAXeval;
   private CXCellState player;
   private CXCellState free;
 
@@ -57,38 +58,45 @@ public class Dorina implements CXPlayer {
     Integer[] FC = B.getAvailableColumns();
     bestMove = FC[0];
 
-    int eval = LOSE;
-    int alpha = LOSE;
-    int beta = WIN;
 
-    if (B.numOfFreeCells() == B.M * B.N) { // prima mossa
-      return B.N / 2; // java arrotonda automaticamente per difetto
-    } else if (B.numOfFreeCells() == ((B.M * B.N) - 1)) { // seconda mossa
+    if (B.numOfFreeCells() == B.M * B.N)              // prima mossa
+      return B.N / 2;     // java arrotonda automaticamente per difetto
+    else if (B.numOfFreeCells() == ((B.M * B.N) - 1)) // seconda mossa
       return secondMove(B);
-    } else {
-      if (FC.length == 1) { // una sola cella libera, ultima mossa
+    else {
+      if (FC.length == 1)      // una sola cella libera, ultima mossa
         return FC[0];
-      }
 
       try {
         int currentDepth = 1;
-        int currentEval = eval;
+        int currentEval;
+        int eval = LOSE;
+        int alpha = LOSE;
+        int beta = WIN;
+        MAXeval = eval;
+
         while (currentDepth <= B.numOfFreeCells()) { // massima profondità = B.numOfFreeCells()
+          eval = LOSE;
+          alpha = LOSE;
+          beta = WIN;
+          currentEval = eval;
+          
           for (int currentColumn : FC) {
             checktime();
             B.markColumn(currentColumn);
             if (B.gameState() == myWin)
               return currentColumn;
 
-            if (!enemyIsWinning(B)) {
-              // System.out.println("currentDepth = " + currentDepth + ", eval = " + eval + ",
-              // current eval = " + currentEval);
-              currentEval = alphaBeta(B, true, alpha, beta, currentDepth);
-              if (currentEval > eval) {
-                eval = currentEval;
-                bestMove = currentColumn;
+              if (!enemyIsWinning(B)) {       // se questa mossa giova all'avversario -> escludila subito
+                System.out.println("colonna = " + currentColumn + ", currentDepth = " + currentDepth + ", eval = " + eval + ", current eval = " + currentEval + ", MAX eval = " + MAXeval + ", best move = " + bestMove);
+                currentEval = alphaBeta(B, true, alpha, beta, currentDepth);
+                if (currentEval > eval)
+                  eval = currentEval;
+                if(currentEval > MAXeval){
+                  MAXeval = currentEval;
+                  bestMove = currentColumn;
+                }
               }
-            }
 
             B.unmarkColumn();
           }
@@ -105,19 +113,16 @@ public class Dorina implements CXPlayer {
   }
 
   private int secondMove(CXBoard B) {
-    if (B.N % 2 == 0) { // even columns
-      if (B.cellState(B.M - 1, B.N / 2) == CXCellState.FREE) {
+    if (B.N % 2 == 0) // even columns
+      if (B.cellState(B.M - 1, B.N / 2) == CXCellState.FREE)
         return B.N / 2;
-      } else {
+      else
         return (B.N / 2) - 1;
-      }
-    } else { // odd columns
-      if (B.cellState(B.M - 1, (B.N - 1) / 2) == CXCellState.FREE) {
+    else // odd columns
+      if (B.cellState(B.M - 1, (B.N - 1) / 2) == CXCellState.FREE)
         return (B.N - 1) / 2;
-      } else {
+      else
         return ((B.N - 1) / 2) - 1;
-      }
-    }
   }
 
   private Boolean enemyIsWinning(CXBoard B) {
@@ -135,40 +140,47 @@ public class Dorina implements CXPlayer {
   }
 
   /* ALPHABETA */
-  private int alphaBeta(CXBoard B, boolean myTurn, int alpha, int beta, int depth) throws TimeoutException {
+  public int alphaBeta(CXBoard B, boolean maximise, int alpha, int beta, int depth) throws TimeoutException {
     checktime();
-    if (B.gameState() != CXGameState.OPEN || depth <= 0) // se il gioco non è più aperto OPPURE depth <= 0 => termina
+    if (B.gameState() != CXGameState.OPEN || depth == 0) 
       evalAlphaBeta = evaluate(B);
-    else if (myTurn) { // massimizzare
-      evalAlphaBeta = LOSE; // Integer.MIN_VALUE
-      for (int currentColumn : B.getAvailableColumns()) {
-        B.markColumn(currentColumn);
-        evalAlphaBeta = Math.max(evalAlphaBeta, alphaBeta(B, !myTurn, alpha, beta, depth - 1)); // si prende il massimo
-                                                                                                // tra i valori generati
-                                                                                                // minimizzando i
-                                                                                                // sottoalberi
-                                                                                                // (supponendo quale sia
-                                                                                                // la mossa che farà
-                                                                                                // l'avversario)
-        B.unmarkColumn();
-        alpha = Math.max(evalAlphaBeta, alpha);
-        if (beta <= alpha)
-          break;
+    else
+      if (maximise) {
+        evalAlphaBeta = LOSE;
+        for (int col : B.getAvailableColumns()) {
+          B.markColumn(col);
+
+          if (enemyIsWinning(B)) {    // se questa mossa giova all'avversario -> escludila subito: assegna alla mossa un valore BASSISSIMO
+            B.unmarkColumn();
+            return LOSE;
+          }
+
+          evalAlphaBeta = Math.max(evalAlphaBeta, alphaBeta(B, !maximise, alpha, beta, depth - 1));
+          B.unmarkColumn();
+          alpha = Math.max(alpha, evalAlphaBeta);
+          if (beta <= alpha) {
+            break;
+          }
+        }
+      } else {
+        evalAlphaBeta = WIN;
+        for (int col : B.getAvailableColumns()) {
+          B.markColumn(col);
+          
+          if (enemyIsWinning(B)) {    // se questa mossa giova all'avversario -> escludila subito: assegna alla mossa un valore BASSISSIMO
+            B.unmarkColumn();
+            return LOSE;
+          }
+
+          evalAlphaBeta = Math.min(evalAlphaBeta, alphaBeta(B, !maximise, alpha, beta, depth - 1));
+          B.unmarkColumn();
+          beta = Math.min(beta, evalAlphaBeta);
+          if (beta <= alpha) {
+            break;
+          }
+        }
       }
-    } else { // minimizzare
-      evalAlphaBeta = WIN; // Integer.MAX_VALUE
-      for (int currentColumn : B.getAvailableColumns()) {
-        B.markColumn(currentColumn);
-        evalAlphaBeta = Math.min(evalAlphaBeta, alphaBeta(B, !myTurn, alpha, beta, depth - 1)); // si prende il minimo
-                                                                                                // tra i valori generati
-                                                                                                // massimizzando i
-                                                                                                // sottoalberi
-        B.unmarkColumn();
-        beta = Math.min(evalAlphaBeta, beta);
-        if (beta <= alpha)
-          break;
-      }
-    }
+
     return evalAlphaBeta;
   }
 

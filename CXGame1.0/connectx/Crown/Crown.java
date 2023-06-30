@@ -59,57 +59,42 @@ public class Crown implements CXPlayer {
     int alpha = LOSE;
     int beta = WIN;
 
-    if (B.numOfFreeCells() == B.M * B.N) { // first move
-      return firstMove(B.N);
-    } else {
-      if (B.numOfFreeCells() == ((B.M * B.N) - 1)) { // second move
-        return secondMove(B);
-      } else {
-        if (FC.length == 1) { // last move
-          return FC[0];
-        }
+    if (B.numOfFreeCells() == B.M * B.N)              // prima mossa
+      return B.N / 2;       // java arrotonda automaticamente per difetto
+/*
+    else if (B.numOfFreeCells() == ((B.M * B.N) - 1)) // seconda mossa
+      return secondMove(B);
+*/
+    else {
+      if (FC.length == 1)      // una sola cella libera, ultima mossa
+        return FC[0];
 
         try {
-
           depth = evaluateDepth(B.numOfFreeCells());
 
-          for (int i : FC) {
+          for (int currentColumn : FC) {
             checktime();
-            B.markColumn(i);
-            if (B.gameState() == myWin) {
-              return i;
-            }
+            B.markColumn(currentColumn);
+            if (B.gameState() == myWin)
+              return currentColumn;
 
-            if (!enemyIsWinning(B)) {
-              // int evaltmp = miniMax(B, false, depth);
-              int evaltmp = alphaBeta(B, false, alpha, beta, depth);
-              if (evaltmp > eval) {
-                eval = evaltmp;
-                bestMove = i;
-              }
+            int evaltmp = alphaBeta(B, true, alpha, beta, depth);
+            if (evaltmp > eval) {
+              eval = evaltmp;
+              bestMove = currentColumn;
             }
-
-            B.unmarkColumn();
           }
 
-        } catch (Exception e) {
+            B.unmarkColumn();
+        }
+        catch (Exception e) {
           System.out.println("Timeout!");
           return bestMove;
         }
-
-      }
     }
     return bestMove;
   }
-
-  private int firstMove(int col) {
-    if (col % 2 == 0) { // even columns
-      return col / 2;
-    } else { // odd columns
-      return (col - 1) / 2;
-    }
-  }
-
+/*
   private int secondMove(CXBoard B) {
     if (B.N % 2 == 0) { // even columns
       if (B.cellState(B.M - 1, B.N / 2) == CXCellState.FREE) {
@@ -125,9 +110,9 @@ public class Crown implements CXPlayer {
       }
     }
   }
-
-  private Boolean enemyIsWinning(CXBoard B) {
-    Boolean isWinning = false;
+*/
+  private boolean enemyIsWinning(CXBoard B) {
+    boolean isWinning = false;
     for (int j : B.getAvailableColumns()) {
       B.markColumn(j);
       if (B.gameState() == yourWin) {
@@ -143,30 +128,47 @@ public class Crown implements CXPlayer {
   /**
    * ALPHABETA
    */
-  private int alphaBeta(CXBoard B, Boolean myTurn, int alpha, int beta, int depth) throws TimeoutException {
-    if (B.gameState() != CXGameState.OPEN || depth == 0) {
+  public int alphaBeta(CXBoard B, boolean maximise, int alpha, int beta, int depth) throws TimeoutException {
+    checktime();
+    if (B.gameState() != CXGameState.OPEN || depth == 0) 
       evalAlphaBeta = evaluate(B);
-    } else if (myTurn) {
-      evalAlphaBeta = LOSE;
-      for (int j : B.getAvailableColumns()) {
-        B.markColumn(j);
-        evalAlphaBeta = Math.max(evalAlphaBeta, alphaBeta(B, false, alpha, beta, depth - 1));
-        B.unmarkColumn();
-        alpha = Math.max(evalAlphaBeta, alpha);
-        if (beta <= alpha)
-          break;
+    else
+      if (maximise) {
+        evalAlphaBeta = LOSE;
+        for (int col : B.getAvailableColumns()) {
+          B.markColumn(col);
+
+          if (enemyIsWinning(B)) {    // se questa mossa giova all'avversario -> escludila subito: assegna alla mossa un valore BASSISSIMO
+            B.unmarkColumn();
+            return LOSE;
+          }
+
+          evalAlphaBeta = Math.max(evalAlphaBeta, alphaBeta(B, !maximise, alpha, beta, depth - 1));
+          B.unmarkColumn();
+          alpha = Math.max(alpha, evalAlphaBeta);
+          if (beta <= alpha) {
+            break;
+          }
+        }
+      } else {
+        evalAlphaBeta = WIN;
+        for (int col : B.getAvailableColumns()) {
+          B.markColumn(col);
+          
+          if (enemyIsWinning(B)) {    // se questa mossa giova all'avversario -> escludila subito: assegna alla mossa un valore BASSISSIMO
+            B.unmarkColumn();
+            return LOSE;
+          }
+
+          evalAlphaBeta = Math.min(evalAlphaBeta, alphaBeta(B, !maximise, alpha, beta, depth - 1));
+          B.unmarkColumn();
+          beta = Math.min(beta, evalAlphaBeta);
+          if (beta <= alpha) {
+            break;
+          }
+        }
       }
-    } else {
-      evalAlphaBeta = WIN;
-      for (int k : B.getAvailableColumns()) {
-        B.markColumn(k);
-        evalAlphaBeta = Math.min(evalAlphaBeta, alphaBeta(B, true, alpha, beta, depth - 1));
-        B.unmarkColumn();
-        beta = Math.min(evalAlphaBeta, beta);
-        if (beta <= alpha)
-          break;
-      }
-    }
+
     return evalAlphaBeta;
   }
 
@@ -329,7 +331,7 @@ public class Crown implements CXPlayer {
   }
 
   private void checktime() throws TimeoutException {
-    if ((System.currentTimeMillis() - START) / 1000.0 >= TIMEOUT * (99.0 / 100.0)) {
+    if ((System.currentTimeMillis() - START) / 1000.0 >= TIMEOUT * (90.0 / 100.0)) {
       throw new TimeoutException();
     }
   }

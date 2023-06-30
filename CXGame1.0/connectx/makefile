@@ -12,7 +12,7 @@ N:=5
 X:=5
 REPS:=5 		# game to play
 TIME:=10
-BEST:=Crown.Crown
+BEST:=Dorina.Dorina
 OLD:=Morales.Morales
 
 .SUFFIXES: .java .class
