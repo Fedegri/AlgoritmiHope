@@ -46,31 +46,7 @@ public class Crown implements CXPlayer {
   }
 
   private void initDepth(int row, int cols) {
-    if (cols == 4) {
-      if (row == 4)
-        depth = 14; // 4 X 4
-      else if (row == 5)
-        depth = 18; // 5 X 4
-      else if (row == 6)
-        depth = 22; // 6 X 4
-      else
-        depth = 13; // 7 X 4
-    } else if (cols == 5) {
-      if (row == 4)
-        depth = 18; // 4 X 5
-      else
-        depth = 11; // 5 X 5, 6 X 5, 7 X 5
-    } else if (cols == 6) { // 4 X 6, 5 X 6, 6 X 6, 7 X 6
-      depth = 10;
-    } else if (cols == 7) { // 4 X 7, 5 X 7, 6 X 7, 7 X 7
-      depth = 8;
-    } else if (cols == 25) { // 25 X 25
-      depth = 3;
-    } else if (cols == 50) { // 50 X 50
-      depth = 2;
-    } else { // 100 X 100
-      depth = 1;
-    }
+    depth = 4 + (row + cols) / 4;
   }
 
   public int selectColumn(CXBoard B) {
@@ -359,7 +335,7 @@ public class Crown implements CXPlayer {
   }
 
   public String playerName() {
-    return "Morales";
+    return "Crown";
   }
 
 }
