@@ -25,7 +25,7 @@ public class Dorina implements CXPlayer {
 
   /*
    * Sistema di valutazione
-   */ 
+   */
   private final int WIN = Integer.MAX_VALUE;
   private final int DRAW = 0;
   private final int LOSE = Integer.MIN_VALUE;
@@ -37,7 +37,7 @@ public class Dorina implements CXPlayer {
   }
 
   /*
-   * INIZIALIZZAZIONE  
+   * INIZIALIZZAZIONE
    */
   public void initPlayer(int M, int N, int X, boolean first, int timeout_in_secs) {
     myWin = first ? CXGameState.WINP1 : CXGameState.WINP2;
@@ -53,8 +53,7 @@ public class Dorina implements CXPlayer {
    * SELEZIONE COLONNA
    */
   public int selectColumn(CXBoard B) {
-    START = System.currentTimeMillis(); // Save starting
-
+    START = System.currentTimeMillis(); // Save starting time
     Integer[] FC = B.getAvailableColumns();
     bestMove = FC[0];
 
@@ -62,48 +61,47 @@ public class Dorina implements CXPlayer {
     int alpha = LOSE;
     int beta = WIN;
 
-    if (B.numOfFreeCells() == B.M * B.N)              // prima mossa
+    if (B.numOfFreeCells() == B.M * B.N) { // prima mossa
       return B.N / 2; // java arrotonda automaticamente per difetto
-    else if (B.numOfFreeCells() == ((B.M * B.N) - 1)) // seconda mossa
+    } else if (B.numOfFreeCells() == ((B.M * B.N) - 1)) { // seconda mossa
       return secondMove(B);
-    else {
-      if (FC.length == 1)      // una sola cella libera, ultima mossa
+    } else {
+      if (FC.length == 1) { // una sola cella libera, ultima mossa
         return FC[0];
+      }
 
       try {
-        for (int currentColumn : FC) {    // per ogni colonna libera
-          checktime();
-          B.markColumn(currentColumn);      // supponiamo di mettere il gettone nella colonna corrente
-          if (B.gameState() == myWin)         // se fa vincere, la si seleziona
-            return currentColumn;
+        int currentDepth = 1;
+        int currentEval = eval;
+        while (currentDepth <= B.numOfFreeCells()) { // massima profondità = B.numOfFreeCells()
+          for (int currentColumn : FC) {
+            checktime();
+            B.markColumn(currentColumn);
+            if (B.gameState() == myWin)
+              return currentColumn;
 
-          if (!enemyIsWinning(B)) {
-            int currentEval = eval;
-            int depth = 1;
-            // iterative deepening
-            while (depth <= B.numOfFreeCells()) {
-              System.out.println("depth = " + depth + ",  eval = " + eval + ",  current eval = " + currentEval);
-              checktime();
-              currentEval = alphaBeta(B, false, alpha, beta, depth); /** PERCHÈ MYTURN È SETTATO A FALSE A PRESCINDERE????? */
+            if (!enemyIsWinning(B)) {
+              // System.out.println("currentDepth = " + currentDepth + ", eval = " + eval + ",
+              // current eval = " + currentEval);
+              currentEval = alphaBeta(B, true, alpha, beta, currentDepth);
               if (currentEval > eval) {
                 eval = currentEval;
                 bestMove = currentColumn;
-                System.out.println("  best move = " + bestMove + ",  current column = " + currentColumn);
               }
-
-              depth++;
             }
-          }
-        }
 
-        B.unmarkColumn();
+            B.unmarkColumn();
+          }
+
+          currentDepth++;
+        }
+        return bestMove;
+
       } catch (Exception e) {
         System.out.println("Timeout!");
         return bestMove;
       }
     }
-
-    return bestMove;
   }
 
   private int secondMove(CXBoard B) {
@@ -145,7 +143,13 @@ public class Dorina implements CXPlayer {
       evalAlphaBeta = LOSE; // Integer.MIN_VALUE
       for (int currentColumn : B.getAvailableColumns()) {
         B.markColumn(currentColumn);
-        evalAlphaBeta = Math.max(evalAlphaBeta, alphaBeta(B, !myTurn, alpha, beta, depth - 1)); // si prende il massimo tra i valori generati minimizzando i sottoalberi (supponendo quale sia la mossa che farà l'avversario)
+        evalAlphaBeta = Math.max(evalAlphaBeta, alphaBeta(B, !myTurn, alpha, beta, depth - 1)); // si prende il massimo
+                                                                                                // tra i valori generati
+                                                                                                // minimizzando i
+                                                                                                // sottoalberi
+                                                                                                // (supponendo quale sia
+                                                                                                // la mossa che farà
+                                                                                                // l'avversario)
         B.unmarkColumn();
         alpha = Math.max(evalAlphaBeta, alpha);
         if (beta <= alpha)
@@ -155,7 +159,10 @@ public class Dorina implements CXPlayer {
       evalAlphaBeta = WIN; // Integer.MAX_VALUE
       for (int currentColumn : B.getAvailableColumns()) {
         B.markColumn(currentColumn);
-        evalAlphaBeta = Math.min(evalAlphaBeta, alphaBeta(B, !myTurn, alpha, beta, depth - 1)); // si prende il minimo tra i valori generati massimizzando i sottoalberi
+        evalAlphaBeta = Math.min(evalAlphaBeta, alphaBeta(B, !myTurn, alpha, beta, depth - 1)); // si prende il minimo
+                                                                                                // tra i valori generati
+                                                                                                // massimizzando i
+                                                                                                // sottoalberi
         B.unmarkColumn();
         beta = Math.min(evalAlphaBeta, beta);
         if (beta <= alpha)

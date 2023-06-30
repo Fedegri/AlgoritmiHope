@@ -12,8 +12,8 @@ N:=5
 X:=5
 REPS:=5 		# game to play
 TIME:=10
-BEST:=Crown.Crown
-OLD:=Morales.Morales
+BEST:=Dorina.Dorina
+OLD:=L1.L1
 
 .SUFFIXES: .java .class
 .PHONY: build

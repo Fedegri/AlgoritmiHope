@@ -83,33 +83,29 @@ public class Morales implements CXPlayer {
     int alpha = LOSE;
     int beta = WIN;
 
-    if (B.numOfFreeCells() == B.M * B.N) { // first move
-      return firstMove(B.N);
-    } else {
-      if (B.numOfFreeCells() == ((B.M * B.N) - 1)) { // second move
+    if (B.numOfFreeCells() == B.M * B.N)              // prima mossa
+      return B.N / 2;    // java arrotonda automaticamente per difetto
+    else
+      if (B.numOfFreeCells() == ((B.M * B.N) - 1))    // seconda mossa
         return secondMove(B);
-      } else {
-        if (FC.length == 1) { // last move
+      else{
+        if (FC.length == 1)    // una sola cella libera, ultima mossa
           return FC[0];
-        }
 
         try {
-
           depth = evaluateDepth(B.numOfFreeCells());
 
-          for (int i : FC) {
+          for (int currentColumn : FC) {
             checktime();
-            B.markColumn(i);
-            if (B.gameState() == myWin) {
-              return i;
-            }
+            B.markColumn(currentColumn);
+            if (B.gameState() == myWin)
+              return currentColumn;
 
             if (!enemyIsWinning(B)) {
-              // int evaltmp = miniMax(B, false, depth);
               int evaltmp = alphaBeta(B, false, alpha, beta, depth);
               if (evaltmp > eval) {
                 eval = evaltmp;
-                bestMove = i;
+                bestMove = currentColumn;
               }
             }
 
@@ -120,41 +116,28 @@ public class Morales implements CXPlayer {
           System.out.println("Timeout!");
           return bestMove;
         }
-
       }
-    }
     return bestMove;
   }
 
-  private int firstMove(int col) {
-    if (col % 2 == 0) { // even columns
-      return col / 2;
-    } else { // odd columns
-      return (col - 1) / 2;
-    }
-  }
-
   private int secondMove(CXBoard B) {
-    if (B.N % 2 == 0) { // even columns
-      if (B.cellState(B.M - 1, B.N / 2) == CXCellState.FREE) {
+    if (B.N % 2 == 0) // colonne pari
+      if (B.cellState(B.M - 1, B.N / 2) == CXCellState.FREE)
         return B.N / 2;
-      } else {
+      else
         return (B.N / 2) - 1;
-      }
-    } else { // odd columns
-      if (B.cellState(B.M - 1, (B.N - 1) / 2) == CXCellState.FREE) {
+    else              // collonne dispari
+      if (B.cellState(B.M - 1, (B.N - 1) / 2) == CXCellState.FREE)
         return (B.N - 1) / 2;
-      } else {
+      else
         return ((B.N - 1) / 2) - 1;
-      }
-    }
   }
 
-  private Boolean enemyIsWinning(CXBoard B) {
-    Boolean isWinning = false;
-    for (int j : B.getAvailableColumns()) {
-      B.markColumn(j);
-      if (B.gameState() == yourWin) {
+  private boolean enemyIsWinning(CXBoard B) {
+    boolean isWinning = false;
+    for (int currentColumn : B.getAvailableColumns()) {   // per ogni colonna disponibile:
+      B.markColumn(currentColumn);
+      if (B.gameState() == yourWin) {                         // se scegliendo quella colonna, l'avversario è in vantaggio
         isWinning = true;
         B.unmarkColumn();
         break;
@@ -167,7 +150,7 @@ public class Morales implements CXPlayer {
   /**
    * ALPHABETA
    */
-  private int alphaBeta(CXBoard B, Boolean myTurn, int alpha, int beta, int depth) throws TimeoutException {
+  private int alphaBeta(CXBoard B, boolean myTurn, int alpha, int beta, int depth) throws TimeoutException {
     if (B.gameState() != CXGameState.OPEN || depth == 0) {
       evalAlphaBeta = evaluate(B);
     } else if (myTurn) {
