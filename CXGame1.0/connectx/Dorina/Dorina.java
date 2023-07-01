@@ -19,8 +19,8 @@ public class Dorina implements CXPlayer {
   private int TIMEOUT;
   private long START;
   private int bestMove;
-  private int evalAlphaBeta = Integer.MIN_VALUE;
-  private int MAXeval;
+  private int evalAlphaBeta;
+  private int MAXeval = Integer.MIN_VALUE;
   private CXCellState player;
   private CXCellState free;
 
@@ -58,45 +58,46 @@ public class Dorina implements CXPlayer {
     Integer[] FC = B.getAvailableColumns();
     bestMove = FC[0];
 
-
-    if (B.numOfFreeCells() == B.M * B.N)              // prima mossa
-      return B.N / 2;     // java arrotonda automaticamente per difetto
+    if (B.numOfFreeCells() == B.M * B.N) // prima mossa
+      return B.N / 2; // java arrotonda automaticamente per difetto
     else if (B.numOfFreeCells() == ((B.M * B.N) - 1)) // seconda mossa
       return secondMove(B);
     else {
-      if (FC.length == 1)      // una sola cella libera, ultima mossa
+      if (FC.length == 1) // una sola cella libera, ultima mossa
         return FC[0];
 
       try {
         int currentDepth = 1;
-        int currentEval;
-        int eval = LOSE;
-        int alpha = LOSE;
-        int beta = WIN;
-        MAXeval = eval;
+        // MAXeval = LOSE;
+        int eval;
+        int alpha;
+        int beta;
 
         while (currentDepth <= B.numOfFreeCells()) { // massima profondità = B.numOfFreeCells()
+          if (currentDepth <= B.numOfFreeCells())
+            System.out.println("depth = " + currentDepth);
+          MAXeval = LOSE;
           eval = LOSE;
           alpha = LOSE;
           beta = WIN;
-          currentEval = eval;
-          
+
           for (int currentColumn : FC) {
+            if ((System.currentTimeMillis() - START) / 1000.0 >= TIMEOUT * (93.0 / 100.0))
+              System.out.println("currentColumn checktime");
             checktime();
             B.markColumn(currentColumn);
             if (B.gameState() == myWin)
               return currentColumn;
 
-              if (!enemyIsWinning(B)) {       // se questa mossa giova all'avversario -> escludila subito
-                System.out.println("colonna = " + currentColumn + ", currentDepth = " + currentDepth + ", eval = " + eval + ", current eval = " + currentEval + ", MAX eval = " + MAXeval + ", best move = " + bestMove);
-                currentEval = alphaBeta(B, true, alpha, beta, currentDepth);
-                if (currentEval > eval)
-                  eval = currentEval;
-                if(currentEval > MAXeval){
-                  MAXeval = currentEval;
-                  bestMove = currentColumn;
-                }
+            if (!enemyIsWinning(B)) { // se questa mossa giova all'avversario -> escludila subito
+              eval = Math.max(eval, alphaBeta(B, true, alpha, beta, currentDepth));
+              if (eval > MAXeval) {
+                MAXeval = eval;
+                bestMove = currentColumn;
               }
+              System.out.println("  colonna = " + currentColumn + ", eval = " + eval + ", MAX eval = " + MAXeval
+                  + ", best move = " + bestMove);
+            }
 
             B.unmarkColumn();
           }
@@ -119,10 +120,10 @@ public class Dorina implements CXPlayer {
       else
         return (B.N / 2) - 1;
     else // odd columns
-      if (B.cellState(B.M - 1, (B.N - 1) / 2) == CXCellState.FREE)
-        return (B.N - 1) / 2;
-      else
-        return ((B.N - 1) / 2) - 1;
+    if (B.cellState(B.M - 1, (B.N - 1) / 2) == CXCellState.FREE)
+      return (B.N - 1) / 2;
+    else
+      return ((B.N - 1) / 2) - 1;
   }
 
   private Boolean enemyIsWinning(CXBoard B) {
@@ -142,44 +143,33 @@ public class Dorina implements CXPlayer {
   /* ALPHABETA */
   public int alphaBeta(CXBoard B, boolean maximise, int alpha, int beta, int depth) throws TimeoutException {
     checktime();
-    if (B.gameState() != CXGameState.OPEN || depth == 0) 
+    if (B.gameState() != CXGameState.OPEN || depth == 0)
       evalAlphaBeta = evaluate(B);
-    else
-      if (maximise) {
-        evalAlphaBeta = LOSE;
-        for (int col : B.getAvailableColumns()) {
-          B.markColumn(col);
+    else if (maximise) {
+      evalAlphaBeta = LOSE;
+      for (int col : B.getAvailableColumns()) {
+        B.markColumn(col);
 
-          if (enemyIsWinning(B)) {    // se questa mossa giova all'avversario -> escludila subito: assegna alla mossa un valore BASSISSIMO
-            B.unmarkColumn();
-            return LOSE;
-          }
-
-          evalAlphaBeta = Math.max(evalAlphaBeta, alphaBeta(B, !maximise, alpha, beta, depth - 1));
-          B.unmarkColumn();
-          alpha = Math.max(alpha, evalAlphaBeta);
-          if (beta <= alpha) {
-            break;
-          }
-        }
-      } else {
-        evalAlphaBeta = WIN;
-        for (int col : B.getAvailableColumns()) {
-          B.markColumn(col);
-          
-          if (enemyIsWinning(B)) {    // se questa mossa giova all'avversario -> escludila subito: assegna alla mossa un valore BASSISSIMO
-            B.unmarkColumn();
-            return LOSE;
-          }
-
-          evalAlphaBeta = Math.min(evalAlphaBeta, alphaBeta(B, !maximise, alpha, beta, depth - 1));
-          B.unmarkColumn();
-          beta = Math.min(beta, evalAlphaBeta);
-          if (beta <= alpha) {
-            break;
-          }
+        evalAlphaBeta = Math.max(evalAlphaBeta, alphaBeta(B, !maximise, alpha, beta, depth - 1));
+        B.unmarkColumn();
+        alpha = Math.max(alpha, evalAlphaBeta);
+        if (beta <= alpha) {
+          break;
         }
       }
+    } else {
+      evalAlphaBeta = WIN;
+      for (int col : B.getAvailableColumns()) {
+        B.markColumn(col);
+
+        evalAlphaBeta = Math.min(evalAlphaBeta, alphaBeta(B, !maximise, alpha, beta, depth - 1));
+        B.unmarkColumn();
+        beta = Math.min(beta, evalAlphaBeta);
+        if (beta <= alpha) {
+          break;
+        }
+      }
+    }
 
     return evalAlphaBeta;
   }
@@ -328,7 +318,7 @@ public class Dorina implements CXPlayer {
   }
 
   private void checktime() throws TimeoutException {
-    if ((System.currentTimeMillis() - START) / 1000.0 >= TIMEOUT * (90.0 / 100.0)) // tempo margine per evitare di
+    if ((System.currentTimeMillis() - START) / 1000.0 >= TIMEOUT * (93.0 / 100.0)) // tempo margine per evitare di
                                                                                    // andare in timeout
       throw new TimeoutException();
   }
