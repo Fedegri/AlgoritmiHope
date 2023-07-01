@@ -1,16 +1,31 @@
 CONFIGURAZIONE		GIOCATORE1 (start)		GIOCATORE2		RISULTATI
-M=7 N=5 K=5 		Dorina					L0				Dorina 5 su 5
-M=7 N=5 K=5 		L0						Dorina			Dorina 5 su 5	
-M=7 N=5 K=5 		L1						Dorina			Dorina 2 su 5 + 3 patte
-M=7 N=5 K=5 		Dorina					Morales			Patta in tutte
-M=7 N=5 K=5 		Morales					Dorina			
-M=7 N=5 K=5 		Dorina					L1				Patta in tutte
-M=7 N=5 K=5 		Crown					Morales			Morales 5 su 5
-M=7 N=5 K=5 		Dorina					Federico		Patta in tutte
-M=7 N=5 K=5 		Morales					Federico		Morales 5 su 5
+M=7 N=5 K=5 		  Dorina					      L0				    Dorina 5 su 5
+M=7 N=5 K=5 		  L0						        Dorina			  Dorina 5 su 5	
 
-M=7 N=7 K=5 		Morales					Federico		Morales 5 su 5
-M=7 N=7 K=5 		Federico				Morales			Morales 5 su 5
+M=7 N=5 K=5 		  L1						        Dorina			  Dorina 2 su 5 + 3 patte
+M=7 N=5 K=5 		  Dorina					      L1				    Patta in tutte
 
-M=6 N=7 K=5			L1						Morales			Morales 5 su 5
-M=6 N=7 K=5			Morales					L1				Morales 4 su 5, L1 1 su 5
+M=7 N=5 K=5 		  Dorina					      Morales			  Patta in tutte
+M=7 N=5 K=5 		  Morales					      Dorina			
+
+M=7 N=7 K=5 		  Morales					      Federico		  Morales 5 su 5
+M=7 N=7 K=5 		  Federico				      Morales			  Morales 5 su 5
+
+M=7 N=7 K=5			  MxLxPlayer					  Morales    		MxLxPlayer 4 su 5 + 1 patta
+M=7 N=7 K=5			  Morales   					  MxLxPlayer    Morales 5 su 5   		
+
+M=7 N=7 K=5			  MoralesID					    Morales	    	Morales 1 + MoralesID 1 + 3 patte
+M=7 N=7 K=5			  Morales					      MoralesID   	MoralesID 5 su 5
+
+
+M=6 N=7 K=5			  L1						        Morales			  Morales 5 su 5
+M=6 N=7 K=5			  Morales					      L1				    Morales 4 su 5 + L1 1 su 5
+
+M=6 N=7 K=5			  Morales					      MxLxPlayer		Morales 1 su 5 + 4 patte
+M=6 N=7 K=5			  MxLxPlayer					  Morales    		Morales 1 su 5 + 4 patte
+
+M=6 N=7 K=5			  MoralesID					    Morales	    	Morales 1 su 5 + 4 patte
+M=6 N=7 K=5			  Morales					      MoralesID   	MoralesID 5 su 5
+
+M=6 N=7 K=5			  MoralesID					    MxLxPlayer	  MxLxPlayer 1 su 5 + 4 patte
+M=6 N=7 K=5			  MxLxPlayer					  MoralesID   	Patta in tutte
