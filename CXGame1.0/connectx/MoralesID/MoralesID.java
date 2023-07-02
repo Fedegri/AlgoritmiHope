@@ -20,7 +20,9 @@ public class MoralesID implements CXPlayer {
   private int evalAlphaBeta = Integer.MIN_VALUE;
   private CXCellState player;
   private CXCellState free;
-  private int depth;
+  private int M;
+  private int N;
+  private int X;
 
   // evaluating system
   private final int WIN = Integer.MAX_VALUE;
@@ -40,37 +42,11 @@ public class MoralesID implements CXPlayer {
     player = first ? CXCellState.P1 : CXCellState.P2;
     free = CXCellState.FREE;
 
-    initDepth(M, N);
+    this.M = M;
+    this.N = N;
+    this.X = X;
 
     TIMEOUT = timeout_in_secs;
-  }
-
-  private void initDepth(int row, int cols) {
-    if (cols == 4) {
-      if (row == 4)
-        depth = 14; // 4 X 4
-      else if (row == 5)
-        depth = 18; // 5 X 4
-      else if (row == 6)
-        depth = 22; // 6 X 4
-      else
-        depth = 13; // 7 X 4
-    } else if (cols == 5) {
-      if (row == 4)
-        depth = 18; // 4 X 5
-      else
-        depth = 11; // 5 X 5, 6 X 5, 7 X 5
-    } else if (cols == 6) { // 4 X 6, 5 X 6, 6 X 6, 7 X 6
-      depth = 10;
-    } else if (cols == 7) { // 4 X 7, 5 X 7, 6 X 7, 7 X 7
-      depth = 8;
-    } else if (cols == 25) { // 25 X 25
-      depth = 3;
-    } else if (cols == 50) { // 50 X 50
-      depth = 2;
-    } else { // 100 X 100
-      depth = 1;
-    }
   }
 
   public int selectColumn(CXBoard B) {
@@ -79,13 +55,16 @@ public class MoralesID implements CXPlayer {
     Integer[] FC = B.getAvailableColumns();
     bestMove = FC[0];
 
-    if (B.numOfFreeCells() == B.M * B.N) // prima mossa
-      return B.N / 2; // java arrotonda automaticamente per difetto
-    else if (B.numOfFreeCells() == ((B.M * B.N) - 1)) // seconda mossa
+    if (B.numOfFreeCells() == M * N)              /* PRIMA MOSSA */ 
+      return N / 2;     // java arrotonda automaticamente per difetto
+    else if (B.numOfFreeCells() == ((M * N) - 1)) /* SECONDA MOSSA */
       return secondMove(B);
     else{
+      if (FC.length == 1)      /* una sola cella libera, ULTIMA MOSSA */
+          return FC[0];
+
       int currentDepth = 1;
-      while (currentDepth <= B.numOfFreeCells()) { // massima profondità = B.numOfFreeCells()
+      while (currentDepth <= B.numOfFreeCells()) {  // massima profondità = numero di celle libere
         try {
           int eval = LOSE;
           int alpha = LOSE;
@@ -121,16 +100,16 @@ public class MoralesID implements CXPlayer {
   }
 
   private int secondMove(CXBoard B) {
-    if (B.N % 2 == 0) // colonne pari
-      if (B.cellState(B.M - 1, B.N / 2) == CXCellState.FREE)
-        return B.N / 2;
+    if (N % 2 == 0)   // colonne pari
+      if (B.cellState(M - 1, N / 2) == CXCellState.FREE)
+        return N / 2;
       else
-        return (B.N / 2) - 1;
-    else // collonne dispari
-    if (B.cellState(B.M - 1, (B.N - 1) / 2) == CXCellState.FREE)
-      return (B.N - 1) / 2;
+        return (N / 2) - 1;
+    else              // collonne dispari
+    if (B.cellState(M - 1, (N - 1) / 2) == CXCellState.FREE)
+      return (N - 1) / 2;
     else
-      return ((B.N - 1) / 2) - 1;
+      return ((N - 1) / 2) - 1;
   }
 
   private boolean enemyIsWinning(CXBoard B) {
@@ -156,8 +135,8 @@ public class MoralesID implements CXPlayer {
       evalAlphaBeta = evaluate(B);
     } else if (myTurn) {
       evalAlphaBeta = LOSE;
-      for (int j : B.getAvailableColumns()) {
-        B.markColumn(j);
+      for (int currentColumn : B.getAvailableColumns()) {
+        B.markColumn(currentColumn);
         evalAlphaBeta = Math.max(evalAlphaBeta, alphaBeta(B, false, alpha, beta, depth - 1));
         B.unmarkColumn();
         alpha = Math.max(evalAlphaBeta, alpha);
@@ -166,8 +145,8 @@ public class MoralesID implements CXPlayer {
       }
     } else {
       evalAlphaBeta = WIN;
-      for (int k : B.getAvailableColumns()) {
-        B.markColumn(k);
+      for (int currentColumn : B.getAvailableColumns()) {
+        B.markColumn(currentColumn);
         evalAlphaBeta = Math.min(evalAlphaBeta, alphaBeta(B, true, alpha, beta, depth - 1));
         B.unmarkColumn();
         beta = Math.min(evalAlphaBeta, beta);
@@ -187,9 +166,8 @@ public class MoralesID implements CXPlayer {
       return LOSE;
     else if (B.gameState() == CXGameState.DRAW)
       return DRAW;
-    else { // qui entriamo solo se il gioco è ancora aperto e nessun giocatore ha vinto
+    else // qui entriamo solo se il gioco è ancora aperto e nessun giocatore ha vinto
       return evaluateNonePosition(B);
-    }
   }
 
   private int evaluateNonePosition(CXBoard B) throws TimeoutException {
@@ -200,30 +178,28 @@ public class MoralesID implements CXPlayer {
     int evalDiag = 0;
 
     // Evaluate rows
-    for (int i = 0; i < B.M; i++) {
-      for (int j = 0; j <= B.N - B.X; j++) {
+    for (int i = 0; i < M; i++) {
+      for (int j = 0; j <= N - X; j++) {
         int countPlayer = 0; // Count of player's cells
         int countOpponent = 0; // Count of opponent's cells
         int countFree = 0; // Count of free cells
 
-        for (int k = 0; k < B.X; k++) {
+        for (int k = 0; k < X; k++) {
           CXCellState cellState = board[i][j + k];
 
-          if (cellState == player) {
+          if (cellState == player)
             countPlayer++;
-          } else if (cellState == free) {
+          else if (cellState == free)
             countFree++;
-          } else {
+          else
             countOpponent++;
-          }
         }
 
         // Evaluate the row based on the counts
-        if (countPlayer > 0 && countOpponent == 0) {
+        if (countPlayer > 0 && countOpponent == 0)
           evalRow += countPlayer * countPlayer * countPlayer;
-        } else if (countOpponent > 0 && countPlayer == 0) {
+        else if (countOpponent > 0 && countPlayer == 0)
           evalRow -= countOpponent * countOpponent * countOpponent;
-        }
 
         // Bonus for having more free cells in the row
         evalRow += countFree;
@@ -231,30 +207,28 @@ public class MoralesID implements CXPlayer {
     }
 
     // Evaluate columns
-    for (int i = 0; i <= B.M - B.X; i++) {
-      for (int j = 0; j < B.N; j++) {
+    for (int i = 0; i <= M - X; i++) {
+      for (int j = 0; j < N; j++) {
         int countPlayer = 0; // Count of player's cells
         int countOpponent = 0; // Count of opponent's cells
         int countFree = 0; // Count of free cells
 
-        for (int k = 0; k < B.X; k++) {
+        for (int k = 0; k < X; k++) {
           CXCellState cellState = board[i + k][j];
 
-          if (cellState == player) {
+          if (cellState == player)
             countPlayer++;
-          } else if (cellState == free) {
+          else if (cellState == free)
             countFree++;
-          } else {
+          else
             countOpponent++;
-          }
         }
 
         // Evaluate the column based on the counts
-        if (countPlayer > 0 && countOpponent == 0) {
+        if (countPlayer > 0 && countOpponent == 0)
           evalCol += countPlayer * countPlayer * countPlayer;
-        } else if (countOpponent > 0 && countPlayer == 0) {
+        else if (countOpponent > 0 && countPlayer == 0)
           evalCol -= countOpponent * countOpponent * countOpponent;
-        }
 
         // Bonus for having more free cells in the column
         evalCol += countFree;
@@ -262,29 +236,27 @@ public class MoralesID implements CXPlayer {
     }
 
     // Evaluate diagonals
-    for (int i = 0; i <= B.M - B.X; i++) {
-      for (int j = 0; j <= B.N - B.X; j++) {
+    for (int i = 0; i <= M - X; i++) {
+      for (int j = 0; j <= N - X; j++) {
         int countPlayer = 0; // Count of player's cells
         int countOpponent = 0; // Count of opponent's cells
         int countFree = 0; // Count of free cells
 
-        for (int k = 0; k < B.X; k++) {
+        for (int k = 0; k < X; k++) {
           CXCellState cellState = board[i + k][j + k];
-          if (cellState == player) {
+          if (cellState == player)
             countPlayer++;
-          } else if (cellState == free) {
+          else if (cellState == free)
             countFree++;
-          } else {
+          else
             countOpponent++;
-          }
         }
 
         // Evaluate the diagonal based on the counts
-        if (countPlayer > 0 && countOpponent == 0) {
+        if (countPlayer > 0 && countOpponent == 0)
           evalDiag += countPlayer * countPlayer * countPlayer;
-        } else if (countOpponent > 0 && countPlayer == 0) {
+        else if (countOpponent > 0 && countPlayer == 0)
           evalDiag -= countOpponent * countOpponent * countOpponent;
-        }
 
         // Bonus for having more free cells in the diagonal
         evalDiag += countFree;
@@ -292,30 +264,28 @@ public class MoralesID implements CXPlayer {
     }
 
     // Evaluate reverse diagonals
-    for (int i = B.X - 1; i < B.M; i++) {
-      for (int j = 0; j <= B.N - B.X; j++) {
+    for (int i = X - 1; i < M; i++) {
+      for (int j = 0; j <= N - X; j++) {
         int countPlayer = 0; // Count of player's cells
         int countOpponent = 0; // Count of opponent's cells
         int countFree = 0; // Count of free cells
 
-        for (int k = 0; k < B.X; k++) {
+        for (int k = 0; k < X; k++) {
           CXCellState cellState = board[i - k][j + k];
 
-          if (cellState == player) {
+          if (cellState == player)
             countPlayer++;
-          } else if (cellState == free) {
+          else if (cellState == free)
             countFree++;
-          } else {
+          else 
             countOpponent++;
-          }
         }
 
         // Evaluate the reverse diagonal based on the counts
-        if (countPlayer > 0 && countOpponent == 0) {
+        if (countPlayer > 0 && countOpponent == 0)
           evalDiag += countPlayer * countPlayer * countPlayer;
-        } else if (countOpponent > 0 && countPlayer == 0) {
+        else if (countOpponent > 0 && countPlayer == 0)
           evalDiag -= countOpponent * countOpponent * countOpponent;
-        }
 
         // Bonus for having more free cells in the reverse diagonal
         evalDiag += countFree;
@@ -326,14 +296,6 @@ public class MoralesID implements CXPlayer {
     int eval = evalRow + evalCol + evalDiag;
 
     return eval;
-  }
-
-  // evaluating depth
-  private int evaluateDepth(int nFC) {
-    if (depth == nFC) {
-      return nFC - 1;
-    } else
-      return depth;
   }
 
   private void checktime() throws TimeoutException {
