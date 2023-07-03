@@ -7,12 +7,12 @@ PKG=connectx
 TEST=CXPlayerTester
 MAIN=$(PKG).CXGame
 
-M:=6
+M:=7
 N:=7
 X:=5
-REPS:=5 		# game to play
+REPS:=1 		# game to play
 TIME:=10
-BEST:=MoralesID.MoralesID
+BEST:=Luke.Luke
 OLD:=MxLxPlayer.MxLxPlayer
 
 .SUFFIXES: .java .class
