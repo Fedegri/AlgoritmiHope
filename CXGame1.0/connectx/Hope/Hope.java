@@ -35,7 +35,6 @@ public class Hope implements CXPlayer {
     public long getHash() { return key; }
 
     public CXGameState markColumn(int col) throws IndexOutOfBoundsException, IllegalStateException {
-      // System.out.println("Marking " + col + ", game state " + gameState);
 			int row = super.RP[col];
       CXGameState res = super.markColumn(col);
       key ^= zobristKeys[row][col][currentPlayer % 2];    // xor di tutte le mosse fatte nella configurazione corrente
@@ -44,7 +43,6 @@ public class Hope implements CXPlayer {
 
     public void unmarkColumn() throws IllegalStateException {
       CXCell oldc = MC.getLast();
-      // System.out.println("Unmarking " + oldc.j + ", game state " + gameState);
       key ^= zobristKeys[oldc.i][oldc.j][currentPlayer % 2];
       super.unmarkColumn();
     }
@@ -116,95 +114,101 @@ public class Hope implements CXPlayer {
     }
   }
 
+  /*
+   * SELECT COLUMN
+   */
   public int selectColumn(CXBoard B) {
     hashConflicts = hashAccess = hashMiss = hashWrite = 0;
     try {
       localB = new Board(B);
 
-      // System.out.println(Arrays.toString(Arrays.stream(B.getMarkedCells())
-      //         .map(c -> c.i + " " + c.j)
-      //         .toArray(String[]::new)));
-      // System.out.println(Arrays.toString(Arrays.stream(localB.getMarkedCells())
-      //         .map(c -> c.i + " " + c.j)
-      //         .toArray(String[]::new)));
+      START = System.currentTimeMillis(); // Salva il tempo di inizio
 
-      int sel = selectColumnForReal();
-      System.out.println("access = " + hashAccess + ", miss = " + hashMiss + ", hashConflict = " + hashConflicts + ", hashWrite = " + hashWrite);
-      return sel;
-    } catch(IllegalStateException e){ 
+      Integer[] FC = localB.getAvailableColumns();
+      bestMove = FC[0];
+    
+      int eval;
+      int alpha;
+      int beta;
+      boolean marked = false;
+    
+      if (FC.length == 1)       // Ultima mossa, rimane solo una colonna disponibile
+        return FC[0];
+
+      try {
+        int currentDepth = 1;
+        while (currentDepth <= localB.numOfFreeCells()) {  // massima profondità = numero di celle libere
+          eval = LOSE;
+          alpha = LOSE;
+          beta = WIN;
+
+          for (int i = 0; i < FC.length; ++i) {       // per ogni colonna libera (FreeColumn)
+            int currentColumn = selectSort(FC, i);      // selectSort mette in testa a FC la colonna con valore alpha-beta maggiore
+            checktime();
+            localB.markColumn(currentColumn);
+            marked = true;
+            if (localB.gameState() == myWin){           // se fa vincere il giocatore, termina ritornando la colonna corrente
+              localB.unmarkColumn();
+              return currentColumn;
+            }
+
+            int evaltmp = alphaBeta(false, alpha, beta, currentDepth);
+            if (evaltmp > eval) {
+              eval = evaltmp;
+              bestMove = currentColumn;
+            }
+
+            localB.unmarkColumn();
+            marked = false;
+          }
+
+          currentDepth++;     // Incrementa la profondità massima per la prossima iterazione
+        }
+      } catch (TimeoutException e) {
+        System.out.println("Timeout: best move returned");
+        if (marked)
+          localB.unmarkColumn();
+          
+        return bestMove;
+      }
+      //System.out.println("access = " + hashAccess + ", miss = " + hashMiss + ", hashConflict = " + hashConflicts + ", hashWrite = " + hashWrite);
+
+      return bestMove;
+    }
+    catch(IllegalStateException e){ 
       e.printStackTrace();
       return 0;
     }
   }
 
+  /*
+   * SELECT SORT
+   */
   public int selectSort(Integer[] A, int start) {
-    int maxI = start;
+    int maxIndex = start;
     localB.markColumn(A[start]);
-    int max = getCache();
+    int max = getCache();     // get del valore alpha-beta dalla cache, se presente
     localB.unmarkColumn();
 
-    for(int i = start; i < A.length; ++i) {
+    for(int i = start + 1; i < A.length; ++i) {
       localB.markColumn(A[i]);
       int val = getCache();
       localB.unmarkColumn();
       if(val > max) {
-        maxI = i;
+        maxIndex = i;
         max = val;
       }
     }
 
-    int tmp = A[start];
-    A[start] = A[maxI];
-    A[maxI] = tmp;
+    int tmp = A[start];         // mette in testa il valore maggiore trovato
+    A[start] = A[maxIndex];
+    A[maxIndex] = tmp;
     return A[start];
   }
 
-  public int selectColumnForReal() {
-    START = System.currentTimeMillis(); // Salva il tempo di inizio
-
-    Integer[] FC = localB.getAvailableColumns();
-    bestMove = FC[0];
-  
-    int eval = LOSE;
-    int alpha = LOSE;
-    int beta = WIN;
-  
-    if (FC.length == 1)       // Ultima mossa, rimane solo una colonna disponibile
-      return FC[0];
-
-    try {
-      int currentDepth = 1;
-      while (currentDepth <= localB.numOfFreeCells()) {  // massima profondità = numero di celle libere
-        System.out.println("detph = " + currentDepth);
-        eval = LOSE;
-        alpha = LOSE;
-        beta = WIN;
-
-        for (int i = 0; i < FC.length; ++i) {
-          int currentColumn = selectSort(FC, i);
-          checktime();
-          localB.markColumn(currentColumn);
-          if (localB.gameState() == myWin)
-            return currentColumn;
-
-          int evaltmp = alphaBeta(false, alpha, beta, currentDepth);
-          if (evaltmp > eval) {
-            eval = evaltmp;
-            bestMove = currentColumn;
-          }
-
-          localB.unmarkColumn();
-        }
-
-        currentDepth++; // Incrementa la profondità massima per la prossima iterazione
-      }
-    } catch (TimeoutException e) {
-      System.out.println("Timeout!");
-      return bestMove;
-    }
-    return bestMove;
-  }
-
+  /*
+   * CACHE: addCache
+   */
   private void addCache(int alphabetaEval) {
     ++hashWrite;
     long hash = localB.getHash();
@@ -215,6 +219,9 @@ public class Hope implements CXPlayer {
     cache[key] = alphabetaEval;
   }
 
+  /*
+   * CACHE: getCache
+   */
   private int getCache() {
     ++hashAccess;
     long hash = localB.getHash();
@@ -226,16 +233,10 @@ public class Hope implements CXPlayer {
     return cache[key];
   }
 
-  private int alphaBeta(boolean myTurn, int alpha, int beta, int depth) throws TimeoutException {
-    int res = alphaBetaForReal(myTurn, alpha, beta, depth);
-    addCache(res);
-    return res;
-  }
-
   /**
    * ALPHABETA
    */
-  private int alphaBetaForReal(boolean myTurn, int alpha, int beta, int depth) throws TimeoutException {
+  private int alphaBeta(boolean myTurn, int alpha, int beta, int depth) throws TimeoutException {
     checktime();
     if (localB.gameState() != CXGameState.OPEN || depth == 0)
       evalAlphaBeta = evaluate();
@@ -263,43 +264,53 @@ public class Hope implements CXPlayer {
           break;
       }
     }
+    addCache(evalAlphaBeta);
     return evalAlphaBeta;
   }
 
-  // funzione chiamata a fine partita O quando la depth utilizzata diventa 0
+  /*
+   * EVALUATE: fine partita 
+   */
+  // funzione chiamata a fine partita OPPURE quando la depth utilizzata in alpha-beta è 0
   private int evaluate(){
     int ret;
-    if (localB.gameState() == myWin)
+    if (localB.gameState() == myWin)                  // fine partita: WIN
       ret = WIN;
-    else if (localB.gameState() == yourWin)
+    else if (localB.gameState() == yourWin)           // fine partita: LOSE
       ret = LOSE;
-    else if (localB.gameState() == CXGameState.DRAW)
+    else if (localB.gameState() == CXGameState.DRAW)  // fine partita: DRAW
       ret = DRAW;
-    else // qui entriamo solo se il gioco è ancora aperto e nessun giocatore ha vinto
-      ret = evaluateNonePosition();
+    else                                              // depth = 0 e partita ancora in gioco
+      ret = evaluateHeuristic();
 
-    if(ret == 0)
+    /* Se return è 0, allora la partita è terminata in DRAW.
+       Si incrementa il valore di 1 poichè il valore 0 viene usato come indicatore di cella vuota in cache */ 
+    if(ret == 0)        
       ret = 1;
 
     return ret;
   }
 
-  private int evaluateNonePosition() {
-    CXCellState[][] board = localB.getBoard();
+  /*
+   * FUNZIONE DI VALUTAZIONE EURISTICA
+   */
+  private int evaluateHeuristic() {
+    CXCellState[][] copyBoard = localB.getBoard();
 
     int evalRow = 0;
     int evalCol = 0;
     int evalDiag = 0;
 
-    // Evaluate rows
-    for (int i = 0; i < localB.M; i++) {
-      for (int j = 0; j <= localB.N - localB.X; j++) {
-        int countPlayer = 0; // Count of player's cells
-        int countOpponent = 0; // Count of opponent's cells
-        int countFree = 0; // Count of free cells
+    // Valutazione righe  (suppongo M=7,N=7,X=5)
+    for (int i = 0; i < localB.M; i++) {                  // per ogni riga  (7 righe)
+      for (int j = 0; j <= localB.N - localB.X; j++) {      // per ogni colonna da 0 a N-X    (0 - 7-5=2)
+        int countPlayer = 0;    // celle del giocatore  
+        int countOpponent = 0;  // celle dell'avversario
+        int countFree = 0;      // celle libere
 
-        for (int k = 0; k < localB.X; k++) {
-          CXCellState cellState = board[i][j + k];
+        /* analizza tutte le possibili sequenze di 5 gettoni nella riga corrente */
+        for (int x = 0; x < localB.X; x++) {                  // per ogni x da 0 a X-1     (0 - 4  ->  j=0: 0,1,2,3,4 -> j=1:1,2,3,4,5 -> j=2:2,3,4,5,6)
+          CXCellState cellState = copyBoard[i][j + x];          // controlla il giocatore di appartenenza di ogni cella e incrementa il contatore relativo
 
           if (cellState == player)
             countPlayer++;
@@ -309,26 +320,27 @@ public class Hope implements CXPlayer {
             countOpponent++;
         }
 
-        // Evaluate the row based on the counts
-        if (countPlayer > 0 && countOpponent == 0)
-          evalRow += countPlayer * countPlayer * countPlayer;
-        else if (countOpponent > 0 && countPlayer == 0)
-          evalRow -= countOpponent * countOpponent * countOpponent;
+        // valuta la riga basandosi sul numero di celle 
+        if (countPlayer > 0 && countOpponent == 0)                    // ci sono solo dei gettoni del giocatore, 0 dell'avversario
+          evalRow += countPlayer * countPlayer * countPlayer;             // incrementa il valore della riga
+        else if (countOpponent > 0 && countPlayer == 0)               // ci sono solo dei gettoni dell'avversario, 0 del giocatore
+          evalRow -= countOpponent * countOpponent * countOpponent;       // decrementa il valore della riga
 
-        // Bonus for having more free cells in the row
+        // bonus se ci sono celle libere nella riga
         evalRow += countFree;
       }
     }
 
-    // Evaluate columns
+    // Valutazione colonne
     for (int i = 0; i <= localB.M - localB.X; i++) {
       for (int j = 0; j < localB.N; j++) {
-        int countPlayer = 0; // Count of player's cells
-        int countOpponent = 0; // Count of opponent's cells
-        int countFree = 0; // Count of free cells
+        int countPlayer = 0;    // celle del giocatore  
+        int countOpponent = 0;  // celle dell'avversario
+        int countFree = 0;      // celle libere
 
-        for (int k = 0; k < localB.X; k++) {
-          CXCellState cellState = board[i + k][j];
+        /* analizza tutte le possibili sequenze di 5 gettoni nella colonna corrente */
+        for (int x = 0; x < localB.X; x++) {
+          CXCellState cellState = copyBoard[i + x][j];    // controlla il giocatore di appartenenza di ogni cella e incrementa il contatore relativo
 
           if (cellState == player)
             countPlayer++;
@@ -338,54 +350,28 @@ public class Hope implements CXPlayer {
             countOpponent++;
         }
 
-        // Evaluate the column based on the counts
-        if (countPlayer > 0 && countOpponent == 0)
-          evalCol += countPlayer * countPlayer * countPlayer;
-        else if (countOpponent > 0 && countPlayer == 0)
-          evalCol -= countOpponent * countOpponent * countOpponent;
+        // valuta la colonna basandosi sul numero di celle 
+        if (countPlayer > 0 && countOpponent == 0)                    // ci sono solo dei gettoni del giocatore, 0 dell'avversario
+          evalCol += countPlayer * countPlayer * countPlayer;             // incrementa il valore della colonna
+        else if (countOpponent > 0 && countPlayer == 0)               // ci sono solo dei gettoni dell'avversario, 0 del giocatore
+          evalCol -= countOpponent * countOpponent * countOpponent;       // decrementa il valore della colonna
 
-        // Bonus for having more free cells in the column
+        // bonus se ci sono celle libere nella colonna
         evalCol += countFree;
       }
     }
 
-    // Evaluate diagonals
-    for (int i = 0; i <= localB.M - localB.X; i++) {
-      for (int j = 0; j <= localB.N - localB.X; j++) {
-        int countPlayer = 0; // Count of player's cells
-        int countOpponent = 0; // Count of opponent's cells
-        int countFree = 0; // Count of free cells
+    // Valutazione diagonali  (suppongo M=7,N=7,X=5)
+    for (int i = 0; i <= localB.M - localB.X; i++) {        // righe da 0 a M-X       (0 - 7-5=2)
+      for (int j = 0; j <= localB.N - localB.X; j++) {      // colonne da 0 a N-X     (0 - 7-5=2)
+        int countPlayer = 0;    // celle del giocatore  
+        int countOpponent = 0;  // celle dell'avversario
+        int countFree = 0;      // celle libere
 
-        for (int k = 0; k < localB.X; k++) {
-          CXCellState cellState = board[i + k][j + k];
-          if (cellState == player)
-            countPlayer++;
-          else if (cellState == free)
-            countFree++;
-          else
-            countOpponent++;
-        }
-
-        // Evaluate the diagonal based on the counts
-        if (countPlayer > 0 && countOpponent == 0)
-          evalDiag += countPlayer * countPlayer * countPlayer;
-        else if (countOpponent > 0 && countPlayer == 0)
-          evalDiag -= countOpponent * countOpponent * countOpponent;
-
-        // Bonus for having more free cells in the diagonal
-        evalDiag += countFree;
-      }
-    }
-
-    // Evaluate reverse diagonals
-    for (int i = localB.X - 1; i < localB.M; i++) {
-      for (int j = 0; j <= localB.N - localB.X; j++) {
-        int countPlayer = 0; // Count of player's cells
-        int countOpponent = 0; // Count of opponent's cells
-        int countFree = 0; // Count of free cells
-
-        for (int k = 0; k < localB.X; k++) {
-          CXCellState cellState = board[i - k][j + k];
+        /* analizza tutte le possibili sequenze di 5 gettoni diagonali sulla matrice */
+        for (int x = 0; x < localB.X; x++) {          // per ogni x da 0 a X-1     (0 - 4  ->  j=0:0,1,2,3,4 -> j=1:1,2,3,4,5 -> j=2:2,3,4,5,6
+                                                      //                                       i=0:0,1,2,3,4 -> i=1:1,2,3,4,5 -> i=2:2,3,4,5,6)
+          CXCellState cellState = copyBoard[i + x][j + x];
 
           if (cellState == player)
             countPlayer++;
@@ -395,18 +381,49 @@ public class Hope implements CXPlayer {
             countOpponent++;
         }
 
-        // Evaluate the reverse diagonal based on the counts
-        if (countPlayer > 0 && countOpponent == 0)
-          evalDiag += countPlayer * countPlayer * countPlayer;
-        else if (countOpponent > 0 && countPlayer == 0)
-          evalDiag -= countOpponent * countOpponent * countOpponent;
+        // valuta la diagonale basandosi sul numero di celle 
+        if (countPlayer > 0 && countOpponent == 0)                    // ci sono solo dei gettoni del giocatore, 0 dell'avversario
+          evalDiag += countPlayer * countPlayer * countPlayer;             // incrementa il valore della diagonale
+        else if (countOpponent > 0 && countPlayer == 0)               // ci sono solo dei gettoni dell'avversario, 0 del giocatore
+          evalDiag -= countOpponent * countOpponent * countOpponent;       // decrementa il valore della diagonale
 
-        // Bonus for having more free cells in the reverse diagonal
+        // bonus se ci sono celle libere nella diagonale
         evalDiag += countFree;
       }
     }
 
-    // Combine the evaluations for rows, columns, and diagonals
+    // Valutazione diagonali inverse  (suppongo M=7,N=7,X=5)
+    for (int i = localB.X - 1; i < localB.M; i++) {         // righe da X-1 a M-1   (5-1=4 - 6)
+      for (int j = 0; j <= localB.N - localB.X; j++) {      // colonne da 0 a N-X   (0 - 7-5=2)
+        int countPlayer = 0;    // celle del giocatore  
+        int countOpponent = 0;  // celle dell'avversario
+        int countFree = 0;      // celle libere
+
+        /* analizza tutte le possibili sequenze di 5 gettoni diagonali inverse sulla matrice */
+        for (int x = 0; x < localB.X; x++) {                    // per ogni x da 0 a X-1     (0 - 4  ->  j=0:0,1,2,3,4 -> j=1:1,2,3,4,5 -> j=2:2,3,4,5,6
+                                                                //                                       i=4:4,3,2,1,0 -> i=5:4,3,2,1,0 -> i=6:4,3,2,1,0)
+          CXCellState cellState = copyBoard[i - x][j + x];
+
+          if (cellState == player)
+            countPlayer++;
+          else if (cellState == free)
+            countFree++;
+          else
+            countOpponent++;
+        }
+
+        // valuta la diagonale inversa basandosi sul numero di celle 
+        if (countPlayer > 0 && countOpponent == 0)                    // ci sono solo dei gettoni del giocatore, 0 dell'avversario
+          evalDiag += countPlayer * countPlayer * countPlayer;             // incrementa il valore della diagonale
+        else if (countOpponent > 0 && countPlayer == 0)               // ci sono solo dei gettoni dell'avversario, 0 del giocatore
+          evalDiag -= countOpponent * countOpponent * countOpponent;       // decrementa il valore della diagonale
+
+        // bonus se ci sono celle libere nella diagonale
+        evalDiag += countFree;
+      }
+    }
+
+    // il valore totale corrisponde alla somma delle valutazioni di righe, colonne e diagonali
     int eval = evalRow + evalCol + evalDiag;
 
     return eval;
@@ -414,7 +431,7 @@ public class Hope implements CXPlayer {
 
 
   private void checktime() throws TimeoutException {
-    if ((System.currentTimeMillis() - START) / 1000.0 >= TIMEOUT * (99.0 / 100.0)) {    // tempo margine per evitare di andare in timeout
+    if ((System.currentTimeMillis() - START) / 1000.0 >= TIMEOUT * (99.0 / 100.0)) {
       throw new TimeoutException();
     }
   }
